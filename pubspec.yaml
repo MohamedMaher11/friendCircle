@@ -1,0 +1,77 @@
+name: socialmo
+description: A new Flutter project.
+version: 1.0.0+1
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  cloud_firestore: ^4.4.5
+  firebase_core: null
+  firebase_auth: null
+  file_picker: ^4.0.0
+  image_picker: null
+  firebase_storage: null
+  intl: null
+  async: null
+  rxdart: ^0.27.7
+  bloc:
+  flutter_bloc:
+  share: null
+  path_provider: ^2.0.5
+  firebase_messaging: ^14.8.2
+  provider: null
+  flutter_sound: null
+  shared_preferences: ^2.2.3
+  cached_network_image: ^3.3.1
+  adaptive_theme: null
+  flutter_localizations:
+    sdk: flutter
+  equatable: ^2.0.5
+  shimmer: ^3.0.0
+  flutter_screenutil: ^5.9.3
+dev_dependencies:
+  flutter_native_splash: 
+  flutter_launcher_icons:
+flutter_native_splash:
+  color: "#FFFFFF"
+  android_gravity: center
+  ios_content_mode: center
+  image: "assets/mylogo.png"
+  android: true
+  ios: true
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/mylogo.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/mylogo.png"
+    background_color: "#hexcode"
+    theme_color: "#hexcode"
+  windows:
+    generate: true
+    image_path: "assets/mylogo.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/mylogo.png"
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.2
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/messenger.png
+    - assets/shaare.png
+    - assets/chatt.png
+    - assets/mylogo.png
+    - assets/people.png
+    - assets/logout.png
+    - assets/user.png
+    - assets/eg.png
+    - assets/br.png
+    - assets/telephone.png
+    - assets/video.png

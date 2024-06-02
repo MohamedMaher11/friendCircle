@@ -1,0 +1,1 @@
+ E:\\newsss\\fire\\.dart_tool\\flutter_build\\2ff86740003c79e9eb6bae5bed25a4af\\native_assets.yaml: 
