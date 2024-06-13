@@ -137,12 +137,19 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
           );
         }
+        Set<String> displayedFriends = {};
+
         return ListView.builder(
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             Map<String, dynamic> friendData =
                 snapshot.data!.docs[index].data() as Map<String, dynamic>;
             String friendId = friendData['friendId'];
+            if (displayedFriends.contains(friendId)) {
+              return SizedBox.shrink(); // إذا كان مكرر، لا تعرضه
+            }
+            displayedFriends.add(friendId);
+
             return StreamBuilder(
               stream: FirebaseFirestore.instance
                   .collection('users')
@@ -171,37 +178,63 @@ class _FriendsPageState extends State<FriendsPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              setState(() {
-                if (value.isEmpty) {
-                  // إذا كان حقل البحث فارغاً، اعرض جميع المستخدمين
-                  _usersStream = FirebaseFirestore.instance
-                      .collection('users')
-                      .snapshots();
-                } else {
-                  // إذا كان هناك نص في حقل البحث، اعرض نتائج البحث
-                  _usersStream = _searchUsers(value);
-                }
-              });
-            },
-            decoration: InputDecoration(
-              labelStyle: TextStyle(
-                  color: isDarkMode
-                      ? Colors.white
-                      : Colors.black), // تغيير لون النص الخاص بالعلامة (Label)
-
-              labelText: AppLocal.loc.search,
-              prefixIcon: Icon(Icons.search),
-            ),
-            style: TextStyle(
-                color: isDarkMode
-                    ? Colors.white
-                    : Colors.black), // تغيير لون النص الذي يُكتب
-          ),
-        ),
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[850] : Colors.white,
+                borderRadius: BorderRadius.circular(30.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10.0,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    if (value.isEmpty) {
+                      // إذا كان حقل البحث فارغاً، اعرض جميع المستخدمين
+                      _usersStream = FirebaseFirestore.instance
+                          .collection('users')
+                          .snapshots();
+                    } else {
+                      // إذا كان هناك نص في حقل البحث، اعرض نتائج البحث
+                      _usersStream = _searchUsers(value);
+                    }
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: AppLocal.loc.search,
+                  hintStyle: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+                ),
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                  fontSize: 16.0,
+                ),
+                cursorColor: isDarkMode ? Colors.white : Colors.blue,
+                cursorWidth: 2.0,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.search,
+              ),
+            )),
         Expanded(
           child: StreamBuilder(
             stream: _usersStream,
@@ -259,151 +292,6 @@ class _FriendsPageState extends State<FriendsPage> {
     bool isCurrentUser = userData['myid'] == widget.userId;
 
     return GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => profilepage(
-                userId: userData['myid'],
-                userData: {
-                  'myid': widget.userId,
-                },
-              ),
-            ),
-          );
-        },
-        child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    // Leading avatar and name
-                    Container(
-                      child: Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.purple,
-                                width: 2.0.w,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 25.r,
-                              backgroundImage:
-                                  NetworkImage(userData['profile_image'] ?? ''),
-                            ),
-                          ),
-                          SizedBox(
-                              width: 10.w), // Space between avatar and name
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                userData['name'] ?? '',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15.sp,
-                                ),
-                              ),
-                              // Add more details about the user if needed
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width / 11,
-                    ),
-                    // Adjust the width as needed
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!isCurrentUser) ...[
-                          ElevatedButton(
-                            style: ButtonStyle(
-                              minimumSize: MaterialStateProperty.all(
-                                  Size(60, 36)), // Adjust the size as needed
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                  isDarkMode ? Colors.grey : Colors.blue),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChatPage(
-                                    userId: widget.userId,
-                                    recipientId: userData['myid'],
-                                    recipientName: userData['name'],
-                                    email: userData['email'],
-                                    reciptenimage: userData['profile_image'],
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              AppLocal.loc.message,
-                              style: TextStyle(
-                                  color:
-                                      isDarkMode ? Colors.white : Colors.black),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 10.w,
-                          ),
-                          _buildFriendOptions(userData['myid']),
-                        ],
-                      ],
-                    ),
-                  ]),
-                ],
-              ),
-            )));
-  }
-
-  Widget _buildFriendOptions(String friendId) {
-    return ElevatedButton(
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text(AppLocal.loc.deletesure),
-              content: Text(AppLocal.loc.deleteusersure),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // لإغلاق المربع حوار
-                    _removeFriend(friendId); // للقيام بإجراء الحذف
-                  },
-                  child: Text(AppLocal.loc.ok),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // لإغلاق المربع حوار
-                  },
-                  child: Text(AppLocal.loc.cancel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-      child: Text(AppLocal.loc.removefriend),
-    );
-  }
-
-  Widget _buildUserItem(BuildContext context, Map<String, dynamic> userData) {
-    bool isCurrentUser = userData['myid'] == widget.userId;
-
-    return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
@@ -424,47 +312,248 @@ class _FriendsPageState extends State<FriendsPage> {
         ),
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.purple,
-                      width: 2.0.w,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Leading avatar and name
+                  Container(
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.purple,
+                              width: 2.0,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 25,
+                            backgroundImage:
+                                NetworkImage(userData['profile_image'] ?? ''),
+                          ),
+                        ),
+                        SizedBox(width: 10), // Space between avatar and name
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              userData['name'] ?? '',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            // Add more details about the user if needed
+                          ],
+                        ),
+                      ],
                     ),
-                    shape: BoxShape.circle,
                   ),
-                  child: CircleAvatar(
-                    radius: 30,
-                    backgroundImage:
-                        NetworkImage(userData['profile_image'] ?? ''),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        userData['name'] ?? '',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 19),
+                  Spacer(),
+                  if (!isCurrentUser) ...[
+                    PopupMenuButton<int>(
+                      icon: Icon(Icons.more_vert,
+                          color: isDarkMode ? Colors.white : Colors.grey[700]),
+                      onSelected: (int result) {
+                        if (result == 0) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatPage(
+                                userId: widget.userId,
+                                recipientId: userData['myid'],
+                                recipientName: userData['name'],
+                                email: userData['email'],
+                                reciptenimage: userData['profile_image'],
+                              ),
+                            ),
+                          );
+                        } else if (result == 1) {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text(
+                                  AppLocal.loc.deletesure,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color.fromARGB(255, 175, 25, 14),
+                                  ),
+                                ),
+                                content: Text(AppLocal.loc.deleteusersure),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .pop(); // لإغلاق المربع حوار
+                                      _removeFriend(userData[
+                                          'myid']); // للقيام بإجراء الحذف
+                                    },
+                                    child: Text(
+                                      AppLocal.loc.ok,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      backgroundColor:
+                                          Color.fromARGB(255, 175, 25, 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .pop(); // لإغلاق المربع حوار
+                                    },
+                                    child: Text(
+                                      AppLocal.loc.cancel,
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      backgroundColor: Colors.grey[200],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        }
+                      },
+                      itemBuilder: (BuildContext context) =>
+                          <PopupMenuEntry<int>>[
+                        PopupMenuItem<int>(
+                          value: 0,
+                          child: Container(
+                            width: 120,
+                            child: Row(
+                              children: [
+                                Icon(Icons.message, color: Colors.blue),
+                                SizedBox(width: 10),
+                                Text(
+                                  AppLocal.loc.message,
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<int>(
+                          value: 1,
+                          child: Container(
+                            width: 120,
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red),
+                                SizedBox(width: 10),
+                                Text(
+                                  AppLocal.loc.removefriend,
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
                       ),
                     ),
                   ],
-                ),
-              ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserItem(BuildContext context, Map<String, dynamic> userData) {
+    bool isCurrentUser = userData['myid'] == widget.userId;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => profilepage(
+              userId: userData['myid'],
+              userData: {
+                'myid': widget.userId,
+              },
             ),
-            trailing: isCurrentUser
-                ? null
-                : SizedBox(
-                    width: 100.w,
-                    child: _buildAddFriendButton(userData['myid']),
+          ),
+        );
+      },
+      child: SizedBox(
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(16.r),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.purple,
+                        width: 2.0.w,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: CircleAvatar(
+                      radius: 25.r,
+                      backgroundImage:
+                          NetworkImage(userData['profile_image'] ?? ''),
+                    ),
                   ),
+                  SizedBox(width: 10.w),
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            userData['name'] ?? '',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15.sp),
+                          ),
+                        ),
+                      ])
+                ],
+              ),
+              trailing: isCurrentUser
+                  ? null
+                  : SizedBox(
+                      width: 100.w,
+                      child: _buildAddFriendButton(userData['myid']),
+                    ),
+            ),
           ),
         ),
       ),
@@ -493,7 +582,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 foregroundColor: Colors.white,
                 backgroundColor: Colors.grey,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20.r),
                 ),
               ),
               child: Text(
@@ -548,11 +637,14 @@ class _FriendsPageState extends State<FriendsPage> {
                     onPressed: () {
                       _sendFriendRequest(friendId);
                     },
-                    child: Text(AppLocal.loc.addfriend),
+                    child: Text(
+                      AppLocal.loc.addfriend,
+                      style: TextStyle(fontSize: 9.sp),
+                    ),
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.white,
                       backgroundColor: isDarkMode
-                          ? Color(0xFFE1BEE7)
+                          ? Color.fromARGB(255, 149, 37, 168)
                           : Color.fromARGB(255, 202, 64, 184),
                     ),
                   ),
@@ -594,14 +686,14 @@ class _FriendsPageState extends State<FriendsPage> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: Icon(Icons.check),
+              TextButton(
+                child: Text(AppLocal.loc.acceptfriend),
                 onPressed: () {
                   _acceptFriendRequest(requestData['senderId'], widget.userId);
                 },
               ),
-              IconButton(
-                icon: Icon(Icons.close),
+              TextButton(
+                child: Text(AppLocal.loc.refusefriend),
                 onPressed: () {
                   _rejectFriendRequest(requestData['senderId'], widget.userId);
                 },

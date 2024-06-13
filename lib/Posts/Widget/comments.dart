@@ -49,6 +49,7 @@ class _CommentsPageState extends State<CommentsPage> {
                   child: TextField(
                     controller: _commentController,
                     decoration: InputDecoration(
+                      hintStyle: TextStyle(color: Colors.black),
                       hintText: AppLocal.loc.addcomment,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(25),

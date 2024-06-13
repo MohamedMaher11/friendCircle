@@ -1,5 +1,6 @@
 // text_styles.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class MyTextStyles {
   static const TextStyle boldTextStyle = TextStyle(
@@ -8,20 +9,20 @@ class MyTextStyles {
 
   static TextStyle dateTextStyle = TextStyle(
     color: Colors.grey[600],
-    fontSize: 12,
+    fontSize: 12.sp,
   );
 
-  static const TextStyle titleTextStyle = TextStyle(
-    fontSize: 18.0,
+  static TextStyle titleTextStyle = TextStyle(
+    fontSize: 18.0.sp,
     fontWeight: FontWeight.bold,
   );
 
-  static const TextStyle likesTextStyle = TextStyle(
+  static TextStyle likesTextStyle = TextStyle(
     color: Colors.red,
-    fontSize: 14,
+    fontSize: 10.sp,
   );
   static TextStyle copytextstyle = TextStyle(
     color: Colors.grey[700],
-    fontSize: 10,
+    fontSize: 9.sp,
   );
 }

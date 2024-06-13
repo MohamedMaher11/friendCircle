@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:path_provider/path_provider.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:socialmo/Chat/ChatPage/Widget/showmesseges.dart';
 import 'package:socialmo/lang/app_local.dart';
@@ -33,18 +38,168 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
-
   late final Stream<List<Map<String, dynamic>>> messagesStream;
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> userActivityStream;
-
   File? _selectedImage;
   String? _selectedImageUrl;
+
+  FlutterSoundRecorder? _audioRecorder;
+  bool _isRecording = false;
+  var _audioFilePath;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeRecorder();
+    messagesStream = _createMessagesStream();
+    userActivityStream = _createUserActivityStream();
+  }
+
+  @override
+  void dispose() {
+    _audioRecorder?.closeRecorder();
+    super.dispose();
+  }
+
+  Future<void> _stopRecording() async {
+    await _audioRecorder!.stopRecorder();
+    setState(() {
+      _isRecording = false;
+    });
+    // Hide the recording dialog when recording stops
+    Navigator.of(context).pop();
+    _uploadAudio();
+  }
+
+  void _initializeRecorder() async {
+    _audioRecorder = FlutterSoundRecorder();
+    await _audioRecorder!.openRecorder();
+    _audioRecorder!.setSubscriptionDuration(Duration(milliseconds: 10));
+  }
+
+  void _showRecordingDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.mic, color: Colors.green, size: 30), // Icon for recording
+            SizedBox(width: 10), // Spacer
+            Text(AppLocal.loc.recording), // Title text
+          ],
+        ),
+        content: Text(AppLocal.loc.recordpro),
+        actions: <Widget>[
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green, // Change button color to green
+            ),
+            child: Text(
+              AppLocal.loc.send,
+              style: TextStyle(
+                color: Colors.white,
+              ),
+            ),
+            onPressed: () {
+              _stopRecording();
+            },
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, // Change button color to red
+            ),
+            child: Text(
+              AppLocal.loc.cancel,
+              style: TextStyle(
+                color: Colors.white,
+              ),
+            ),
+            onPressed: () {
+              _audioRecorder?.stopRecorder();
+              setState(() {
+                _isRecording = false;
+              });
+              Navigator.of(context).pop(); // Close the dialog without sending
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (status != PermissionStatus.granted) {
+      // Handle the case when permission is not granted
+      return;
+    }
+    try {
+      // Define a valid local file path
+      String fileName = '${DateTime.now().millisecondsSinceEpoch}.aac';
+      _audioFilePath = '${(await getTemporaryDirectory()).path}/$fileName';
+
+      // Start recording to the local file
+      await _audioRecorder!.startRecorder(toFile: _audioFilePath);
+      setState(() {
+        _isRecording = true;
+      });
+      // Show a dialog indicating recording has started
+      _showRecordingDialog();
+    } catch (e) {
+      print('Error starting recorder: $e');
+    }
+  }
+
+  Future<void> _uploadAudio() async {
+    if (_audioFilePath != null) {
+      File audioFile = File(_audioFilePath!);
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('chat_audios')
+          .child('${DateTime.now().millisecondsSinceEpoch}.aac');
+
+      try {
+        UploadTask uploadTask = storageRef.putFile(audioFile);
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(AppLocal.loc.sending),
+                ],
+              ),
+            );
+          },
+        );
+
+        String audioUrl = await (await uploadTask).ref.getDownloadURL();
+        setState(() {
+          _audioFilePath = null;
+        });
+
+        Navigator.of(context).pop();
+        _sendMessage(null, audioUrl);
+      } catch (error) {
+        print('Error uploading audio: $error');
+        // Handle error
+      }
+    }
+  }
 
   void _pickImage() async {
     final picker = ImagePicker();
     final pickedImage = await picker.pickImage(source: ImageSource.gallery);
     if (pickedImage != null) {
-      File imageFile = File(pickedImage.path); // image path inside imagefile
+      File imageFile = File(pickedImage.path);
       setState(() {
         _selectedImage = File(pickedImage.path);
       });
@@ -87,33 +242,21 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  void _sendMessage(String messageText) async {
-    if (messageText.isNotEmpty || _selectedImageUrl != null) {
-      if (messageText.isNotEmpty && _selectedImageUrl != null) {
-        // Save and display both message and image
-        FirebaseFirestore.instance.collection('chats').add({
-          'senderId': widget.userId,
-          'recipientId': widget.recipientId,
-          'message': messageText,
-          'email': widget.email,
-          'profile_image': widget.reciptenimage,
-          'recipientName': widget.recipientName,
-          'timestamp': Timestamp.now(),
-          'image': _selectedImageUrl,
-        });
-      } else {
-        // Save and display only message or image based on availability
-        FirebaseFirestore.instance.collection('chats').add({
-          'senderId': widget.userId,
-          'recipientId': widget.recipientId,
-          'message': messageText.isNotEmpty ? messageText : null,
-          'email': widget.email,
-          'profile_image': widget.reciptenimage,
-          'recipientName': widget.recipientName,
-          'timestamp': Timestamp.now(),
-          'image': _selectedImageUrl != null ? _selectedImageUrl : null,
-        });
-      }
+  void _sendMessage(String? messageText, [String? audioUrl]) async {
+    if ((messageText != null && messageText.isNotEmpty) ||
+        audioUrl != null ||
+        _selectedImageUrl != null) {
+      FirebaseFirestore.instance.collection('chats').add({
+        'senderId': widget.userId,
+        'recipientId': widget.recipientId,
+        'message': messageText,
+        'email': widget.email,
+        'profile_image': widget.reciptenimage,
+        'recipientName': widget.recipientName,
+        'timestamp': Timestamp.now(),
+        'image': _selectedImageUrl,
+        'audio': audioUrl,
+      });
 
       _messageController.clear();
       setState(() {
@@ -155,7 +298,7 @@ class _ChatPageState extends State<ChatPage> {
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
-                    maxLines: null, // السماح للنص بالتمدد عمودياً
+                    maxLines: null,
                     controller: _messageTextController,
                     style: TextStyle(color: Colors.black),
                     decoration: InputDecoration(
@@ -204,7 +347,6 @@ class _ChatPageState extends State<ChatPage> {
         );
       },
     ).then((value) {
-      // Remove the selected image when tapping outside the AlertDialog
       if (!_shouldSendMessage) {
         setState(() {
           _selectedImage = null;
@@ -216,10 +358,8 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    messagesStream = Rx.combineLatest2(
+  Stream<List<Map<String, dynamic>>> _createMessagesStream() {
+    return Rx.combineLatest2(
       FirebaseFirestore.instance
           .collection('chats')
           .where('senderId', isEqualTo: widget.userId)
@@ -234,11 +374,11 @@ class _ChatPageState extends State<ChatPage> {
           .snapshots(),
       (QuerySnapshot sentMessages, QuerySnapshot receivedMessages) {
         List<Map<String, dynamic>> allMessages = [];
-
         allMessages.addAll(sentMessages.docs.map((message) => {
               'messageId': message.id,
               'message': message['message'],
               'image': message['image'],
+              'audio': message['audio'],
               'isSender': true,
               'timestamp': message['timestamp'],
             }));
@@ -246,17 +386,18 @@ class _ChatPageState extends State<ChatPage> {
               'messageId': message.id,
               'message': message['message'],
               'image': message['image'],
+              'audio': message['audio'],
               'isSender': false,
               'timestamp': message['timestamp'],
             }));
-
         allMessages.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
-
         return allMessages;
       },
     );
+  }
 
-    userActivityStream = FirebaseFirestore.instance
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _createUserActivityStream() {
+    return FirebaseFirestore.instance
         .collection('users')
         .doc(widget.recipientId)
         .snapshots();
@@ -266,59 +407,67 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFF0d2645), // Background color updated
-        elevation: 0, // Removed app bar elevation
+        backgroundColor: Color(0xFF0d2645),
+        elevation: 0,
         title: Row(
           children: [
             CircleAvatar(
-              radius: 16,
+              radius: 16.r,
               backgroundImage: CachedNetworkImageProvider(widget.reciptenimage),
             ),
-            SizedBox(width: 8.w),
-            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: userActivityStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Text(
-                    widget.recipientName,
-                    style: TextStyle(color: Colors.white), // Text color updated
+            SizedBox(width: 8),
+            Expanded(
+              child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: userActivityStream,
+                builder: (context, snapshot) {
+                  String userName = widget.recipientName;
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text(
+                      userName,
+                      style: TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    );
+                  }
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return Text(
+                      userName,
+                      style: TextStyle(color: Color(0xFFf3dcde)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    );
+                  }
+                  var lastActiveTimestamp =
+                      snapshot.data!.data()?['lastSeenTimestamp'];
+                  var lastActiveTime = lastActiveTimestamp != null
+                      ? DateFormat.yMd()
+                          .add_jm()
+                          .format(lastActiveTimestamp.toDate())
+                      : 'Unknown';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userName,
+                        style: TextStyle(color: Colors.white, fontSize: 15.sp),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      Text(
+                        '${AppLocal.loc.lastactive} $lastActiveTime',
+                        style: TextStyle(fontSize: 15.sp, color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
                   );
-                }
-                if (snapshot.hasError || !snapshot.hasData) {
-                  return Text(
-                    widget.recipientName,
-                    style: TextStyle(
-                        color: Color(0xFFf3dcde)), // Text color updated
-                  );
-                }
-                var lastActiveTimestamp =
-                    snapshot.data!.data()?['lastSeenTimestamp'];
-                var lastActiveTime = lastActiveTimestamp != null
-                    ? DateFormat.yMd()
-                        .add_jm()
-                        .format(lastActiveTimestamp.toDate())
-                    : 'Unknown';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.recipientName,
-                      style:
-                          TextStyle(color: Colors.white), // Text color updated
-                    ),
-
-                    Text('${AppLocal.loc.lastactive} $lastActiveTime',
-                        style: TextStyle(fontSize: 12.sp, color: Colors.white)),
-                    // Add last active time if needed
-                  ],
-                );
-              },
+                },
+              ),
             ),
           ],
         ),
         leading: IconButton(
-          icon:
-              Icon(Icons.arrow_back, color: Colors.white), // Icon color updated
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -327,7 +476,7 @@ class _ChatPageState extends State<ChatPage> {
           IconButton(
             icon: ImageIcon(
               AssetImage('assets/video.png'),
-              size: 30.sp,
+              size: 30,
               color: Colors.white,
             ),
             onPressed: () {},
@@ -350,13 +499,9 @@ class _ChatPageState extends State<ChatPage> {
         ),
         child: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-                sigmaX: 5,
-                sigmaY: 5), // Adjust sigmaX and sigmaY for blur intensity
-
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
             child: Container(
-              color: Colors.black.withOpacity(0.5), // Adjust opacity as needed
-
+              color: Colors.black.withOpacity(0.5),
               child: Column(
                 children: [
                   Expanded(
@@ -389,13 +534,14 @@ class _ChatPageState extends State<ChatPage> {
                             return GestureDetector(
                               onLongPress: () {
                                 _showDeleteConfirmationDialog(
-                                    message['messageId']); // Pass message ID
+                                    message['messageId']);
                               },
                               child: MessageWidget(
                                 message: message['message'],
                                 isSender: message['isSender'],
                                 timestamp: message['timestamp'],
                                 image: message['image'],
+                                audio: message['audio'],
                               ),
                             );
                           },
@@ -410,7 +556,7 @@ class _ChatPageState extends State<ChatPage> {
                       children: [
                         Expanded(
                           child: TextField(
-                            maxLines: null, // السماح للنص بالتمدد عمودياً
+                            maxLines: null,
                             controller: _messageController,
                             decoration: InputDecoration(
                               hintText: AppLocal.loc.typemessege,
@@ -422,32 +568,34 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                           ),
                         ),
-                        SizedBox(width: 8.w),
                         IconButton(
-                          icon: Icon(Icons.image),
+                          icon: Icon(
+                            Icons.image,
+                            color: Colors.blue,
+                          ),
                           onPressed: _pickImage,
                         ),
-                        SizedBox(width: 8.w),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () {
-                              _sendMessage(_messageController.text);
-                            },
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Icon(
-                                Icons.send,
-                                color: Colors.white,
-                              ),
-                            ),
+                        IconButton(
+                          icon: Icon(
+                            _isRecording ? Icons.mic_off : Icons.mic,
+                            color: Colors.blue,
                           ),
+                          onPressed: () {
+                            if (_isRecording) {
+                              _stopRecording();
+                            } else {
+                              _startRecording();
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.send,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () {
+                            _sendMessage(_messageController.text);
+                          },
                         ),
                       ],
                     ),
@@ -501,14 +649,12 @@ class _ChatPageState extends State<ChatPage> {
         var messageData = snapshot.data();
         if (messageData != null) {
           String senderId = messageData['senderId'];
-          // Check if the current user is the original sender of the message
           if (senderId == widget.userId) {
             FirebaseFirestore.instance
                 .collection('chats')
                 .doc(messageId)
                 .delete();
           } else {
-            // If the current user is not the original sender, show an alert dialog
             showDialog(
               context: context,
               builder: (BuildContext context) {

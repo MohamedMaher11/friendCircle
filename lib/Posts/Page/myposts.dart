@@ -247,7 +247,7 @@ class _MyPostsState extends State<MyPosts> {
                   children: [
                     Container(
                       width: double.infinity,
-                      height: 150.0,
+                      height: 150.0.h,
                       color: Colors.white,
                     ),
                     SizedBox(height: 8.0.sp),
@@ -256,13 +256,13 @@ class _MyPostsState extends State<MyPosts> {
                       height: 20.0.h,
                       color: Colors.white,
                     ),
-                    SizedBox(height: 8.0),
+                    SizedBox(height: 8.0.h),
                     Container(
                       width: 150.0.w,
                       height: 20.0.h,
                       color: Colors.white,
                     ),
-                    SizedBox(height: 8.0),
+                    SizedBox(height: 8.0.h),
                     Row(
                       children: [
                         Container(
@@ -411,7 +411,9 @@ class _MyPostsState extends State<MyPosts> {
                                 ),
                                 PopupMenuItem(
                                   child: ListTile(
-                                    leading: Icon(Icons.delete),
+                                    leading: Icon(
+                                      Icons.delete,
+                                    ),
                                     title: Text(AppLocal.loc.delete_post),
                                     onTap: () {
                                       showDialog(
@@ -505,25 +507,40 @@ class _MyPostsState extends State<MyPosts> {
                           child: Padding(
                             padding: EdgeInsets.only(
                                 left: isRtl ? 0 : 6.w, right: isRtl ? 6.w : 0),
-                            child: Row(
+                            child: Column(
                               children: [
-                                AnimatedContainer(
-                                  duration: Duration(milliseconds: 300),
-                                  child: Icon(
-                                    Icons.favorite_rounded,
-                                    color: isLiked ? Colors.red : Colors.grey,
-                                    size: 28.sp,
-                                  ),
-                                  transform: Matrix4.translationValues(
-                                    _uploadingImage ? 0.0 : 5.0,
-                                    0.0,
-                                    0.0,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .spaceEvenly, // Added to ensure even spacing between children
+
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: Duration(milliseconds: 300),
+                                      child: Icon(
+                                        Icons.favorite_rounded,
+                                        color:
+                                            isLiked ? Colors.red : Colors.grey,
+                                        size: 25.sp,
+                                      ),
+                                      transform: Matrix4.translationValues(
+                                        _uploadingImage ? 0.0 : 5.0,
+                                        0.0,
+                                        0.0,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4.w),
+                                    Text(
+                                      data['likes']?.length.toString() ?? '0',
+                                      style: MyTextStyles.likesTextStyle,
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 4.w),
                                 Text(
-                                  data['likes']?.length.toString() ?? '0',
-                                  style: MyTextStyles.likesTextStyle,
+                                  AppLocal.loc.react,
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 10.sp,
+                                  ),
                                 ),
                               ],
                             ),
@@ -538,10 +555,9 @@ class _MyPostsState extends State<MyPosts> {
                               Image.asset(
                                 'assets/chatt.png',
                                 width: 20.w,
-                                height: 20.h,
+                                height: 30.h,
                                 color: Colors.grey[700],
                               ),
-                              SizedBox(height: 2),
                               Text(
                                 AppLocal.loc.comment,
                                 style: TextStyle(
@@ -564,10 +580,9 @@ class _MyPostsState extends State<MyPosts> {
                             children: [
                               Icon(
                                 Icons.copy_rounded,
-                                color: Colors.blue,
-                                size: 28,
+                                color: Color.fromARGB(255, 33, 150, 243),
+                                size: 25.sp,
                               ),
-                              SizedBox(height: 2.h),
                               Text(
                                 AppLocal.loc.copy,
                                 style: MyTextStyles.copytextstyle,
@@ -588,10 +603,9 @@ class _MyPostsState extends State<MyPosts> {
                                 Image.asset(
                                   'assets/shaare.png',
                                   width: 20.w,
-                                  height: 20.h,
+                                  height: 30.h,
                                   color: Colors.purple,
                                 ),
-                                SizedBox(height: 2.h),
                                 Text(
                                   AppLocal.loc.share,
                                   style: TextStyle(
