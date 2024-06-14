@@ -1,5 +1,4 @@
 🌐 Welcome to Friend Circle!
-
 Friend Circle is a social media platform designed to bring people together. Here are some key features:
 📝 Post and Comment: Share your thoughts and engage with friends.
 👍 Like and Share: Interact with posts and spread the word.
